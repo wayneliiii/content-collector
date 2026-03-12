@@ -21,6 +21,7 @@ description: >
 
 ## 数据位置
 
+### 主存储（AI 检索用）
 `~/.openclaw/workspace/collections/`
 
 ```
@@ -32,6 +33,31 @@ collections/
 ├── ideas/          # 零散想法、灵感
 ├── index.md        # 全局索引（自动维护）
 └── tags.md         # 标签索引（自动维护）
+```
+
+### Obsidian 同步（人工浏览用）
+`~/KaiVault/6-资源/收藏/`
+
+```
+收藏/
+├── 文章/           # ← collections/articles
+├── 视频/           # ← collections/videos
+├── 推文/           # ← collections/tweets
+├── 公众号/         # ← collections/wechat
+└── 想法/           # ← collections/ideas
+```
+
+**每次收藏时必须同时写入两个位置。** Obsidian 版本的差异：
+1. **文件名**：用中文标题（从 frontmatter title 取），不用 `YYYY-MM-DD-slug` 格式
+2. **标签**：frontmatter 保留 `tags` 数组 + 正文第一行加 `#tag1 #tag2 ...` 格式（Obsidian 图谱和搜索用）
+3. **aliases**：frontmatter 加 `aliases: [title]`，方便 Obsidian 双链搜索
+4. **目录映射**：`articles→文章`、`videos→视频`、`tweets→推文`、`wechat→公众号`、`ideas→想法`
+
+**Obsidian 写入模板**（伪代码）：
+```
+target_dir = ~/KaiVault/6-资源/收藏/{中文目录}/
+filename = sanitize(title).md   # 去掉 <>:"/\|?* 等非法字符，截断80字符
+content = 原始 frontmatter（加 aliases） + "\n\n" + "#tag1 #tag2 ..." + "\n\n" + body
 ```
 
 ## 收藏工作流
@@ -56,13 +82,16 @@ Supadata 不可用时的降级方案：
 1. **优先** `supadata_fetch.py web <url>` 抓取正文
 2. **降级** `web_fetch` 抓取正文
 3. 提取标题、作者、发布日期、正文摘要、关键词
-4. 生成 `collections/articles/YYYY-MM-DD-slug.md`
+4. **提取有价值的插图**（默认执行，见下方「插图保存规范」）
+5. 生成 `collections/articles/YYYY-MM-DD-slug.md`（含插图引用）
+6. **同步到 Obsidian** → `~/KaiVault/6-资源/收藏/文章/{标题}.md`（含插图复制）
 
 ### 视频内容（YouTube/TikTok/X/Instagram/Facebook）
 1. **元数据**: `supadata_fetch.py metadata <url>`
 2. **转录**: `supadata_fetch.py transcript <url> --text --lang zh`
 3. **内容提取**：基于转录文本提取核心观点、金句、要点
 4. 生成 `collections/videos/YYYY-MM-DD-slug.md`
+5. **同步到 Obsidian** → `~/KaiVault/6-资源/收藏/视频/{标题}.md`
 
 ### 纯文本/截图
 1. 截图用 `image` 工具提取文字
@@ -85,6 +114,38 @@ Supadata 不可用时的降级方案：
      - 全部失败 → 仅保存元数据+评论，在收藏文件中标注"转录未获取，待补充"，不阻塞收藏流程
 4. **内容提取**：基于转录文本提取核心观点、金句、要点
 5. 生成 `collections/videos/YYYY-MM-DD-slug.md`
+6. **同步到 Obsidian** → `~/KaiVault/6-资源/收藏/视频/{标题}.md`
+
+## 插图保存规范
+
+**收藏文章时默认提取有价值的插图**，作为后续写作素材。
+
+### 判断标准（哪些图值得保存）
+- ✅ 架构图、流程图、框架图、对比图、数据可视化
+- ✅ 概念说明图、示意图、信息图
+- ❌ 装饰性 banner、logo、头像、广告
+- ❌ 纯文字截图（直接引用文字更好）
+
+### 操作流程
+1. **发现插图**：用 browser `evaluate` 提取页面 `<img>` 列表（src + alt + caption）
+2. **筛选**：排除装饰性图片（logo、小于 200px、SVG 图标等）
+3. **下载**：用 CDN 原始 URL（避免 Next.js 等图片优化层），`curl -sL` 保存到：
+   - collections 路径：`collections/{category}/images/{slug}/01-描述.png`
+   - slug 与收藏文件的文件名 slug 一致
+4. **嵌入收藏文件**：在正文中用 `## 插图` 章节，每张图包含：
+   - `![alt](images/{slug}/filename.png)`
+   - 斜体说明文字（来自 caption 或自行总结）
+5. **同步到 Obsidian**：
+   - 复制图片到 `~/KaiVault/6-资源/收藏/{中文目录}/images/{slug}/`
+   - Obsidian 版本使用相同的相对路径引用
+
+### 命名规范
+- 文件名：`{序号}-{简短英文描述}.png`（如 `01-architecture-overview.png`）
+- 目录名：与收藏文件 slug 一致（如 `evals-for-agents`）
+
+### 注意
+- 图片保存为本地副本，不依赖外部 URL（防止链接失效）
+- 单篇文章通常 3-8 张有价值的图，不要过度收集
 
 ## 关联项目（自动匹配）
 
@@ -141,6 +202,29 @@ stats: { views: 0, likes: 0, comments: 0 }
 - **评论区观点摘要**（视频类）— 总结争议点
 - **我的笔记** — 用户个人批注，后续补充
 - **原文摘要** — 200-500字概要
+
+## Obsidian 同步规范
+
+每次写入 `collections/` 后，**必须**同时写入 Obsidian 版本。步骤：
+
+1. 从刚写入的收藏文件读取 frontmatter
+2. 构建 Obsidian 版本：
+   - 保留 frontmatter 的 `title, source, url, author, date_published, date_collected, category, language, summary, duration, platform, bvid, tags`
+   - 添加 `aliases: [title]`
+   - 正文第一行加 `#tag1 #tag2 ...`（标签中的空格替换为 `_`）
+3. 文件名 = `sanitize(title).md`（去掉 `<>:"/\|?*`，截断 80 字符）
+4. 写入到 `~/KaiVault/6-资源/收藏/{中文目录}/`
+
+目录映射：
+| collections 目录 | Obsidian 目录 |
+|---|---|
+| articles/ | 文章/ |
+| videos/ | 视频/ |
+| tweets/ | 推文/ |
+| wechat/ | 公众号/ |
+| ideas/ | 想法/ |
+
+**注意**：Obsidian 版本是 collections 的只读镜像。编辑应在 collections 原文件上进行，然后重新同步。
 
 ## 索引
 
@@ -199,4 +283,5 @@ stats: { views: 0, likes: 0, comments: 0 }
 | "关于 [标签] 的收藏" | 从 tags.md 筛选 |
 | "用 [选题] 写篇小红书" | 二创生成 |
 | "给这篇加个笔记" | 更新"我的笔记"部分 |
-| "删除这条收藏" | 移除并更新索引 |
+| "删除这条收藏" | 移除并更新索引 + 删除 Obsidian 对应文件 |
+| "重新同步到 Obsidian" | 全量重新同步：`python3 scripts/sync_to_obsidian.py`（skill 目录下） |
