@@ -104,6 +104,7 @@ Supadata 不可用时的降级方案：
 ### 视频内容（YouTube/TikTok/X/Instagram/Facebook）
 1. **元数据**: `supadata_fetch.py metadata <url>`
 2. **转录**: `supadata_fetch.py transcript <url> --text --lang zh`
+   - **YouTube 降级**：supadata credit 用完或失败时，先 navigate 到视频页面再运行 `python3 ~/.openclaw/workspace/scripts/bb_browser_bridge.py youtube/transcript`（需要浏览器在视频页面上）
 3. **内容提取**：基于转录文本提取核心观点、金句、要点
 4. 生成 `collections/videos/YYYY-MM-DD-slug.md`
 5. **同步到 Obsidian**（优先 CLI，降级直接写文件）→ `收藏/视频/{标题}.md`
@@ -115,9 +116,11 @@ Supadata 不可用时的降级方案：
 
 ### B站视频（本地流程，Supadata 不支持 B站）
 1. **元数据**：`python3 scripts/bilibili_extract.py <bvid_or_url>` → 标题、作者、时长、标签、数据指标
+   - **降级**：`python3 ~/.openclaw/workspace/scripts/bb_browser_bridge.py bilibili/video <bvid>` → 结构化 JSON（view/like/danmaku/reply/favorite/coin/share）
 2. **评论区**：
    - 无登录（API）：3条热门
    - 已登录（浏览器 shadow DOM）：20+条，见 `references/bilibili-comments.md`
+   - **降级**：`python3 ~/.openclaw/workspace/scripts/bb_browser_bridge.py bilibili/comments <bvid>`
 3. **视频转录**：`bash scripts/bilibili_transcribe.sh <bvid_or_url> [model]`
    - 依赖：yt-dlp、faster-whisper（uv）、opencc
    - 需浏览器已登录B站（yt-dlp 读取 cookie）
