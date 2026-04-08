@@ -1,6 +1,5 @@
 ---
 name: content-collector
-version: 1.1.0
 description: >
   个人内容收藏与知识管理系统。收藏、整理、检索、二创。
   Use when: (1) 用户分享链接/文字/截图并要求保存或收藏,
